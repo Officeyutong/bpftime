@@ -122,6 +122,7 @@ target_link_libraries(${PROJECT_NAME}
   PUBLIC
   vm-bpf
   spdlog::spdlog
+  rt
 )
 add_dependencies(${PROJECT_NAME} vm-bpf FridaGum syscall_id_table spdlog::spdlog libbpf)
 

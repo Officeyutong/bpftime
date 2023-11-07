@@ -83,6 +83,7 @@ foreach(file ${test_sources})
       Catch2::Catch2
       runtime
       bpftime-object
+      rt
     )
   else()
     target_link_libraries(
@@ -90,6 +91,7 @@ foreach(file ${test_sources})
       PUBLIC
       runtime
       bpftime-object
+      rt
     )
 
     # message("Unknown testing library ${test_name}_Tests. Please setup your desired unit testing library by using `target_link_libraries`.")

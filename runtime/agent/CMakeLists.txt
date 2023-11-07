@@ -17,4 +17,5 @@ target_link_libraries(bpftime-agent
     -lm 
     -ldl
     spdlog::spdlog
+    rt
 )

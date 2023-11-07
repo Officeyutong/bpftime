@@ -26,7 +26,7 @@ set(TEST_SOURCES
 add_executable(bpftime_runtime_tests ${TEST_SOURCES})
 set_property(TARGET bpftime_runtime_tests PROPERTY CXX_STANDARD 20)
 add_dependencies(bpftime_runtime_tests runtime bpftime-object)
-target_link_libraries(bpftime_runtime_tests PRIVATE runtime bpftime-object Catch2::Catch2WithMain)
+target_link_libraries(bpftime_runtime_tests PRIVATE runtime bpftime-object Catch2::Catch2WithMain rt)
 target_include_directories(bpftime_runtime_tests PRIVATE ${BPFTIME_RUNTIME_INCLUDE} ${BPFTIME_OBJECT_INCLUDE_DIRS} ${Catch2_INCLUDE} ${Boost_INCLUDE})
 add_test(NAME bpftime_runtime_tests COMMAND bpftime_runtime_tests)
 

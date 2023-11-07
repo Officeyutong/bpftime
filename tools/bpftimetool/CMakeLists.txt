@@ -16,6 +16,7 @@ target_link_libraries(bpftimetool
   -ldl
   runtime
   bpftime-object
+  rt
 )
 
 install(TARGETS bpftimetool CONFIGURATIONS Release Debug DESTINATION ~/.bpftime)

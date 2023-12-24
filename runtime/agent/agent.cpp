@@ -18,6 +18,7 @@
 #include "bpftime_shm.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/cfg/env.h>
+#include <nlohmann/json.hpp>
 using namespace bpftime;
 
 using main_func_t = int (*)(int, char **, char **);
@@ -82,7 +83,15 @@ extern "C" void bpftime_agent_main(const gchar *data, gboolean *stay_resident)
 	spdlog::set_pattern("[%Y-%m-%d %H:%M:%S][%^%l%$][%t] %v");
 	/* We don't want to our library to be unloaded after we return. */
 	*stay_resident = TRUE;
-
+	if (strcmp("", data) != 0) {
+		SPDLOG_INFO("Using configuration: {}", data);
+		using json = nlohmann::json;
+		json cfg = json::parse(data);
+		if (cfg.contains("disable_aot") && cfg["disable_aot"] == true) {
+			SPDLOG_INFO("Disabling AOT due to the configuration");
+			setenv("BPFTIME_DISABLE_AOT", "1", 1);
+		}
+	}
 	int res = 1;
 
 	res = ctx_holder.ctx.init_attach_ctx_from_handlers(
@@ -95,7 +104,6 @@ extern "C" void bpftime_agent_main(const gchar *data, gboolean *stay_resident)
 	// don't free ctx here
 	return;
 }
-
 
 int64_t syscall_callback(int64_t sys_nr, int64_t arg1, int64_t arg2,
 			 int64_t arg3, int64_t arg4, int64_t arg5, int64_t arg6)

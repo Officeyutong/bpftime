@@ -21,3 +21,10 @@ target_compile_definitions(bpftime-cli-cpp PRIVATE _GNU_SOURCE)
 add_dependencies(bpftime-cli-cpp spdlog::spdlog FridaCore argparse)
 
 install(TARGETS bpftime-cli-cpp CONFIGURATIONS Release Debug DESTINATION ~/.bpftime)
+
+FetchContent_Declare(
+  nlohmann_json
+  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(nlohmann_json)
+add_dependencies(bpftime-cli-cpp nlohmann_json)
+target_link_libraries(bpftime-cli-cpp PRIVATE nlohmann_json::nlohmann_json)

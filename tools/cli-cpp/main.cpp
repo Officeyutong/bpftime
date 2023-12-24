@@ -1,3 +1,4 @@
+#include "spdlog/cfg/env.h"
 #include "spdlog/spdlog.h"
 #include <cstdlib>
 #include <cstring>
@@ -12,7 +13,7 @@
 #include <utility>
 #include <tuple>
 #include <sys/wait.h>
-
+#include <nlohmann/json.hpp>
 static bool str_starts_with(const char *main, const char *pat)
 {
 	if (strstr(main, pat) == main)
@@ -21,7 +22,8 @@ static bool str_starts_with(const char *main, const char *pat)
 }
 
 static int run_command(const char *path, const std::vector<std::string> &argv,
-		       const char *ld_preload, const char *agent_so)
+		       const char *ld_preload, const char *agent_so,
+		       bool disable_aot = false)
 {
 	int pid = fork();
 	if (pid == 0) {
@@ -52,7 +54,9 @@ static int run_command(const char *path, const std::vector<std::string> &argv,
 			env_arr.push_back(ld_preload_str.c_str());
 		if (!agent_so_set)
 			env_arr.push_back(agent_so_str.c_str());
-
+		if (disable_aot) {
+			env_arr.push_back("BPFTIME_DISABLE_AOT=1");
+		}
 		env_arr.push_back(nullptr);
 		std::vector<const char *> argv_arr;
 		argv_arr.push_back(path);
@@ -77,16 +81,22 @@ static int run_command(const char *path, const std::vector<std::string> &argv,
 	}
 	return 1;
 }
-static int inject_by_frida(int pid, const char *inject_path, const char *arg)
+static int inject_by_frida(int pid, const char *inject_path, const char *arg,
+			   bool disable_aot = false)
 {
 	spdlog::info("Injecting to {}", pid);
 	frida_init();
 	auto injector = frida_injector_new();
 	GError *err = nullptr;
-	auto id = frida_injector_inject_library_file_sync(injector, pid,
-							  inject_path,
-							  "bpftime_agent_main",
-							  arg, nullptr, &err);
+	using json = nlohmann::json;
+	json cfg;
+	cfg["disable_aot"] = disable_aot;
+	cfg["agent_path"] = arg;
+	auto arg_str = cfg.dump();
+	spdlog::debug("inject path {}, arg {}", inject_path, arg_str);
+	auto id = frida_injector_inject_library_file_sync(
+		injector, pid, inject_path, "bpftime_agent_main",
+		arg_str.c_str(), nullptr, &err);
 	if (err) {
 		spdlog::error("Failed to inject: {}", err->message);
 		g_error_free(err);
@@ -117,6 +127,7 @@ extract_path_and_args(const argparse::ArgumentParser &parser)
 }
 int main(int argc, const char **argv)
 {
+	spdlog::cfg::load_env_levels();
 	argparse::ArgumentParser program(argv[0]);
 
 	if (auto home_env = getenv("HOME"); home_env) {
@@ -156,6 +167,7 @@ int main(int argc, const char **argv)
 	start_command.add_argument("-s", "--enable-syscall-trace")
 		.help("Whether to enable syscall trace")
 		.flag();
+	start_command.add_argument("--no-aot").help("Disablt AOT").flag();
 	start_command.add_argument("COMMAND")
 		.nargs(argparse::nargs_pattern::at_least_one)
 		.help("Command to run");
@@ -166,6 +178,7 @@ int main(int argc, const char **argv)
 	attach_command.add_argument("-s", "--enable-syscall-trace")
 		.help("Whether to enable syscall trace")
 		.flag();
+	attach_command.add_argument("--no-aot").help("Disablt AOT").flag();
 	attach_command.add_argument("PID").scan<'i', int>();
 
 	program.add_subparser(load_command);
@@ -202,6 +215,7 @@ int main(int argc, const char **argv)
 		}
 		auto [executable_path, extra_args] =
 			extract_path_and_args(start_command);
+		bool no_aot = start_command.get<bool>("no-aot");
 		if (start_command.get<bool>("enable-syscall-trace")) {
 			auto transformer_path =
 				install_path /
@@ -214,10 +228,10 @@ int main(int argc, const char **argv)
 
 			return run_command(executable_path.c_str(), extra_args,
 					   transformer_path.c_str(),
-					   agent_path.c_str());
+					   agent_path.c_str(), no_aot);
 		} else {
 			return run_command(executable_path.c_str(), extra_args,
-					   agent_path.c_str(), nullptr);
+					   agent_path.c_str(), nullptr, no_aot);
 		}
 	} else if (program.is_subcommand_used("attach")) {
 		auto agent_path = install_path / "libbpftime-agent.so";
@@ -227,6 +241,7 @@ int main(int argc, const char **argv)
 			return 1;
 		}
 		auto pid = attach_command.get<int>("PID");
+		bool no_aot = attach_command.get<bool>("no-aot");
 		if (attach_command.get<bool>("enable-syscall-trace")) {
 			auto transformer_path =
 				install_path /
@@ -237,9 +252,10 @@ int main(int argc, const char **argv)
 				return 1;
 			}
 			return inject_by_frida(pid, transformer_path.c_str(),
-					       agent_path.c_str());
+					       agent_path.c_str(), no_aot);
 		} else {
-			return inject_by_frida(pid, agent_path.c_str(), "");
+			return inject_by_frida(pid, agent_path.c_str(), "",
+					       no_aot);
 		}
 	}
 	return 0;

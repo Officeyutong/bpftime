@@ -191,6 +191,10 @@ See [benchmark](https://github.com/eunomia-bpf/bpftime/tree/master/benchmark) di
 
 Refer to [documents/available-features.md](https://github.com/eunomia-bpf/bpftime/tree/master/documents/avaliable-features.md) for more details.
 
+### About LLVM-JIT and AOT compilation
+
+LLVM-JIT is enabled if you compile bpftime-agent with `-DENABLE_LLVM_JIT` or `release-with-llvm-jit`. When enabled, ebpf program that bpftime handles will be compiled to LLVM IR, then handed to LLVM and be compiled to native code, with optimizations. AOT compilation is enabled by default, meaning that the compilation of the same ebpf program will only be executed once. (compiled objects, which are relocatabled elf files, are stored in `~/.bpftime/aot-cache`, distinguished by sha256). You may set the environment variable `BPFTIME_DISABLE_AOT=1`, or set the `--no-aot` flag when use `bpftime start` or `bpftime attach`, to disable AOT
+
 ## Build and test
 
 See [documents/build-and-test.md](https://github.com/eunomia-bpf/bpftime/tree/master/documents/build-and-test.md) for details.

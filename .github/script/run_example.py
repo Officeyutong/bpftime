@@ -44,6 +44,7 @@ async def main():
         expected_str,
         bpftime_cli,
         syscall_trace,
+        disable_jit,
     ) = sys.argv[1:]
     try:
         bashreadline_patch = "readline" in executable
@@ -78,7 +79,9 @@ async def main():
             *(
                 " ".join(
                     [bpftime_cli, "start"]
-                    + (["-s", victim] if syscall_trace == "1" else [victim])
+                    + (["-s"] if syscall_trace == "1" else [])
+                    + (["--no-aot"] if disable_jit == "true" else [])
+                    + [victim]
                 ).split()
             ),
             stdout=asyncio.subprocess.PIPE,
@@ -103,6 +106,7 @@ async def main():
             await asyncio.gather(server.communicate(), agent.communicate())
         except:
             pass
+
 
 if __name__ == "__main__":
     asyncio.run(main())

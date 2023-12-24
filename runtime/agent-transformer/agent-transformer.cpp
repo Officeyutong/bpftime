@@ -8,6 +8,8 @@
 #include <spdlog/cfg/env.h>
 #include <string>
 #include <frida-gum.h>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 using main_func_t = int (*)(int, char **, char **);
 using shm_destroy_func_t = void (*)(void);
@@ -44,26 +46,33 @@ extern "C" void bpftime_agent_main(const gchar *data, gboolean *stay_resident)
 	spdlog::cfg::load_env_levels();
 	/* We don't want to our library to be unloaded after we return. */
 	*stay_resident = TRUE;
-
-	const char *agent_so = getenv("AGENT_SO");
-	if (agent_so == nullptr) {
-		if (std::string(data) != "") {
-			SPDLOG_INFO("Using agent path from frida data..");
-			agent_so = data;
-		} else {
-			SPDLOG_ERROR(
-				"Please set AGENT_SO to the bpftime-agent when use this tranformer");
-			return;
+	json cfg;
+	std::string agent_path;
+	// const char *agent_so = getenv("AGENT_SO");
+	if (strcmp(data, "") != 0) {
+		SPDLOG_INFO("Reading configuration from frida arguments");
+		cfg = json::parse(data);
+		agent_path = cfg["agent_path"];
+		SPDLOG_INFO("Set agent path to {}", agent_path);
+		if (cfg["disable_aot"]) {
+			SPDLOG_INFO("Disabled AOT");
+			setenv("BPFTIME_DISABLE_AOT", "1", 1);
 		}
+	} else if (auto p = getenv("AGENT_SO"); p) {
+		SPDLOG_INFO(
+			"Using agent path from environment variable AGENT_SO: {}",
+			p);
+		agent_path = p;
+	} else {
+		assert(false &&
+		       "Please set AGENT_SO to the bpftime-agent when use this tranformer");
 	}
-	assert(agent_so &&
-	       "Please set AGENT_SO to the bpftime-agent when use this tranformer");
-	SPDLOG_INFO("Using agent {}", agent_so);
+
 	cs_arch_register_x86();
 	bpftime::setup_syscall_tracer();
 	SPDLOG_DEBUG("Loading dynamic library..");
 	auto next_handle =
-		dlmopen(LM_ID_NEWLM, agent_so, RTLD_NOW | RTLD_LOCAL);
+		dlmopen(LM_ID_NEWLM, agent_path.c_str(), RTLD_NOW | RTLD_LOCAL);
 	if (next_handle == nullptr) {
 		SPDLOG_ERROR("Failed to open agent: {}", dlerror());
 		exit(1);

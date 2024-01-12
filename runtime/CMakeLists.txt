@@ -203,3 +203,10 @@ if(BPFTIME_ENABLE_UNIT_TESTING)
   add_subdirectory(test)
   add_subdirectory(unit-test)
 endif()
+
+add_executable(benchmark-uprobe benchmark.cpp)
+
+set_property(TARGET benchmark-uprobe PROPERTY CXX_STANDARD 20)
+add_dependencies(benchmark-uprobe runtime bpftime-object)
+target_link_libraries(benchmark-uprobe PRIVATE runtime bpftime-object)
+target_include_directories(benchmark-uprobe PRIVATE ${BPFTIME_RUNTIME_INCLUDE} ${BPFTIME_OBJECT_INCLUDE_DIRS} ${Catch2_INCLUDE} ${Boost_INCLUDE})

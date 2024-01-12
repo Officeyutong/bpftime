@@ -38,6 +38,8 @@ int main(int argc, const char **argv)
 		man.attach_uprobe_at((void *)uprobe_test_func,
 				     [&](const auto &regs) { call_time++; });
 		run_test();
+	} else if (argc == 2 && strcmp(argv[1], "none") == 0) {
+		run_test();
 	} else {
 		std::cout << "Running override" << std::endl;
 		man.attach_uprobe_override_at((void *)uprobe_test_func,

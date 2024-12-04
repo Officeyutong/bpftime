@@ -1,0 +1,26 @@
+ignore:
+  - "third_party/*"
+  - "runtime/unit-test/*"
+  - "attach/frida_uprobe_attach_impl/test/*"
+  - "attach/syscall_trace_attach_impl/test/*"
+  
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # adjust accordingly based on how flaky your tests are
+        # this allows a 0.5% drop from the previous base commit coverage
+        threshold: 0.5%
+
+      compiler:
+        target: auto
+        threshold: 0.2%
+        paths:
+          - compiler
+    patch:
+      default:
+        target: auto
+        base: auto
+        only_pulls: false

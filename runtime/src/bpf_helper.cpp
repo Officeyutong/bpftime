@@ -315,6 +315,18 @@ uint64_t bpftime_ktime_get_coarse_ns(uint64_t, uint64_t, uint64_t, uint64_t,
 	return spec.tv_sec * (uint64_t)1000000000 + spec.tv_nsec;
 }
 
+uint64_t bpftime_ktime_get_boot_ns(uint64_t, uint64_t, uint64_t, uint64_t,
+				   uint64_t)
+{
+	timespec spec{};
+#ifdef CLOCK_BOOTTIME
+	if (clock_gettime(CLOCK_BOOTTIME, &spec) == 0)
+		return spec.tv_sec * (uint64_t)1000000000 + spec.tv_nsec;
+#endif
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+	return spec.tv_sec * (uint64_t)1000000000 + spec.tv_nsec;
+}
+
 uint64_t bpftime_get_current_pid_tgid(uint64_t, uint64_t, uint64_t, uint64_t,
 				      uint64_t)
 {
@@ -594,8 +606,8 @@ uint64_t bpftime_tail_call(uint64_t ctx, uint64_t prog_array, uint64_t index)
 		const auto &handler = std::get<bpftime::bpf_prog_handler>(
 			bpftime::shm_holder.global_shared_memory.get_handler(
 				to_call_fd));
-		bpftime::agent_config config =
-			bpftime::bpftime_get_agent_config();
+		bpftime::runtime_config config =
+			bpftime::bpftime_get_runtime_config();
 		bpftime::bpftime_prog prog(handler.insns.data(),
 					   handler.insns.size(),
 					   handler.name.c_str());
@@ -680,6 +692,11 @@ uint64_t bpftime_get_attach_cookie(uint64_t ctx, uint64_t, uint64_t, uint64_t,
 		SPDLOG_DEBUG("Cookie doesn't exist");
 		return 0;
 	}
+}
+
+uint64_t bpftime_get_func_ip(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t)
+{
+	return bpftime::attach::current_thread_attach_func_ip;
 }
 
 uint64_t bpftime_get_smp_processor_id()
@@ -1209,6 +1226,12 @@ bpftime_helper_group::get_kernel_utils_helper_group()
 			    .name = "bpf_ktime_get_ns",
 			    .fn = (void *)bpftime_ktime_get_ns,
 		    } },
+		  { BPF_FUNC_ktime_get_boot_ns,
+		    bpftime_helper_info{
+			    .index = BPF_FUNC_ktime_get_boot_ns,
+			    .name = "bpf_ktime_get_boot_ns",
+			    .fn = (void *)bpftime_ktime_get_boot_ns,
+		    } },
 		  { BPF_FUNC_trace_printk,
 		    bpftime_helper_info{
 			    .index = BPF_FUNC_trace_printk,
@@ -1323,7 +1346,11 @@ bpftime_helper_group::get_kernel_utils_helper_group()
 		    bpftime_helper_info{
 			    .index = BPF_FUNC_get_attach_cookie,
 			    .name = "bpf_get_attach_cookie",
-			    .fn = (void *)bpftime_get_attach_cookie } } }
+			    .fn = (void *)bpftime_get_attach_cookie } },
+		  { BPF_FUNC_get_func_ip,
+		    bpftime_helper_info{ .index = BPF_FUNC_get_func_ip,
+					 .name = "bpf_get_func_ip",
+					 .fn = (void *)bpftime_get_func_ip } } }
 
 	};
 
